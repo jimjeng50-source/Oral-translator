@@ -47,6 +47,7 @@ body.flip #log .msg.id{transform:rotate(180deg)}
   <button id="autoSpeak" aria-pressed="true">🔊 自動朗讀</button>
   <button id="flip" aria-pressed="false">↻ 對面</button>
   <button id="clear">清除</button>
+  <button id="keyBtn">🔑 金鑰</button>
 </header>
 <main id="log"><div class="empty">按下方按鈕開始說話<br>Tekan tombol di bawah lalu bicara</div></main>
 <div id="status" aria-live="polite"></div>
@@ -71,7 +72,32 @@ let autoSpeak = true, rec = null;
 
 const setStatus = t => statusEl.textContent = t || '';
 
+const getKey = () => { try { return localStorage.getItem('gkey') || ''; } catch (e) { return ''; } };
+
+function setKey() {
+  const k = prompt('貼上 Google Cloud Translation API 金鑰\nMasukkan Google API key（留空＝改用免費備援）', getKey());
+  if (k === null) return;
+  try { k.trim() ? localStorage.setItem('gkey', k.trim()) : localStorage.removeItem('gkey'); } catch (e) {}
+  setStatus(k.trim() ? '✔ 已儲存金鑰（只存在這支手機）' : '已清除金鑰，使用免費備援');
+}
+
+async function googleTranslate(text, from, key) {
+  const r = await fetch('https://translation.googleapis.com/language/translate/v2?key=' + encodeURIComponent(key), {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({q: text, source: L[from].api, target: L[L[from].other].api, format: 'text'})
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && j.error.message) || 'HTTP ' + r.status);
+  const t = j.data && j.data.translations && j.data.translations[0].translatedText;
+  if (!t) throw new Error('no result');
+  const d = document.createElement('textarea'); d.innerHTML = t; // decode HTML entities
+  return d.value;
+}
+
 async function translate(text, from) {
+  const key = getKey();
+  if (key) return googleTranslate(text, from, key);
   const to = L[from].other;
   const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) +
               '&langpair=' + L[from].api + '|' + L[to].api;
@@ -148,7 +174,9 @@ document.querySelectorAll('.mic').forEach(b => b.onclick = () => listen(b.datase
 $('#typed').onsubmit = e => { e.preventDefault(); const t = $('#typedText'); handle(t.value, $('#typedLang').value); t.value = ''; };
 $('#autoSpeak').onclick = e => { autoSpeak = !autoSpeak; e.currentTarget.setAttribute('aria-pressed', autoSpeak); };
 $('#flip').onclick = e => { const on = document.body.classList.toggle('flip'); e.currentTarget.setAttribute('aria-pressed', on); };
+$('#keyBtn').onclick = setKey;
 $('#clear').onclick = () => { log.innerHTML = '<div class="empty">按下方按鈕開始說話<br>Tekan tombol di bawah lalu bicara</div>'; setStatus(''); };
+if (!getKey()) setStatus('點右上「🔑 金鑰」設定 Google API key，翻譯品質更好');
 if ('speechSynthesis' in window) speechSynthesis.getVoices();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
