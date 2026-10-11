@@ -19,7 +19,7 @@
 
 ## 3. 檔案
 - `index.html`：全部介面與邏輯（無需建置）
-- `sw.js`：Service Worker（改版時需把 `CACHE` 版本號 +1，目前 `oral-translator-v6`）
+- `sw.js`：Service Worker（改版時需把檔內快取名稱的版本號 +1，目前 `oral-translator-v6`）
 - `manifest.webmanifest`、`icon.svg`：PWA 設定
 - `README.md`：使用與金鑰說明
 
@@ -33,7 +33,7 @@
 ## 5. 金鑰
 - 來源：Google AI Studio，或 Cloud Console「憑證 → API 金鑰」並啟用 Generative Language API
 - 安全：金鑰在前端可被看到，務必在 Cloud Console 限制 API（只勾 Generative Language API）、HTTP 參照位址（`https://jimjeng50-source.github.io/*`），並設用量上限
-- 使用者目前的金鑰為 `AQ.` 開頭（新式金鑰）。論壇有許多 `AQ.` 金鑰呼叫 Gemini API 回 401 的回報；本專案實測已通過驗證（見下節）。若日後 401，改建 `AIza` 開頭傳統金鑰
+- 使用者目前的金鑰為 `AQ.` 開頭（新式金鑰）。論壇有許多 `AQ.` 金鑰呼叫 Gemini API 回 401 的回報；使用者手機上的請求已通過驗證（錯誤變成參數問題，見下節），但尚未確認翻譯成功。若日後 401，改建 `AIza` 開頭傳統金鑰
 
 ## 6. 開發歷程與決策
 1. 起初用 MyMemory 免費翻譯（無金鑰、品質普通）。
