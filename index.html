@@ -52,11 +52,11 @@ body.flip #status{order:3;min-height:0;border-bottom:1px solid var(--line)}
 body.flip #log,body.flip #typed,body.flip #mics{display:none}
 </style>
 </head>
-<body>
+<body class="flip">
 <header>
   <h1>🎙 國語 ⇄ Indonesia</h1>
   <button id="autoSpeak" aria-pressed="true">🔊 自動朗讀</button>
-  <button id="flip" aria-pressed="false">↻ 對面看（分半）</button>
+  <button id="flip" aria-pressed="true">↻ 對面看（分半）</button>
   <button id="clear">清除</button>
   <button id="keyBtn">🔑 金鑰</button>
 </header>
@@ -249,6 +249,7 @@ $('#flip').onclick = e => { const on = document.body.classList.toggle('flip'); e
 $('#keyBtn').onclick = setKey;
 $('#clear').onclick = () => { history.length = 0; render(); setStatus(''); };
 if (!getKey()) setStatus('點右上「🔑 金鑰」設定 Google API key，翻譯品質更好');
+render();
 if ('speechSynthesis' in window) speechSynthesis.getVoices();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
