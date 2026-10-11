@@ -106,7 +106,7 @@ async function geminiTranslate(text, from, key) {
       systemInstruction: {parts: [{text: '你是口語即時口譯員。把使用者說的話從' + NAME[from] + '翻成' + NAME[to] +
         '，語氣自然口語，保留原意。只輸出譯文，不要解釋、不要引號。若原文是語音辨識結果，可修正明顯的同音錯字。'}]},
       contents: [{role: 'user', parts: [{text}]}],
-      generationConfig: {temperature: 0, thinkingConfig: {thinkingBudget: 0}}
+      generationConfig: {temperature: 0}
     })
   });
   const j = await r.json().catch(() => ({}));
