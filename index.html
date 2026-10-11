@@ -42,6 +42,9 @@ header button[aria-pressed=true]{background:var(--zh);color:#fff;border-color:va
 .pane{display:none;flex:1;min-height:0;flex-direction:column;padding:8px 14px}
 .pane .plog{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
 .pane .msg .out{font-size:24px}
+.pform{display:flex;gap:8px;margin-top:8px}
+.pform input{flex:1;min-width:0;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:12px;padding:10px;font-size:16px}
+.pform button{border:0;background:var(--fg);color:var(--bg);border-radius:12px;padding:0 14px;font-size:15px}
 .pane .mic{margin-top:8px;padding:16px 8px;width:100%}
 body.flip .pane{display:flex}
 body.flip #paneId{order:1;transform:rotate(180deg);background:color-mix(in srgb,var(--id) 8%,var(--bg))}
@@ -62,8 +65,8 @@ body.flip #log,body.flip #typed,body.flip #mics{display:none}
 </header>
 <main id="log"><div class="empty">按下方按鈕開始說話<br>Tekan tombol di bawah lalu bicara</div></main>
 <div id="status" aria-live="polite"></div>
-<section class="pane" id="paneId"><div class="plog"></div><button class="mic id" data-lang="id">🎤 Bicara Indonesia<small>說印尼文</small></button></section>
-<section class="pane" id="paneZh"><div class="plog"></div><button class="mic zh" data-lang="zh">🎤 說國語<small>Bicara Mandarin</small></button></section>
+<section class="pane" id="paneId"><div class="plog"></div><form class="pform" data-lang="id"><input placeholder="Ketik di sini…" autocomplete="off"><button>Kirim</button></form><button class="mic id" data-lang="id">🎤 Bicara Indonesia<small>說印尼文</small></button></section>
+<section class="pane" id="paneZh"><div class="plog"></div><form class="pform" data-lang="zh"><input placeholder="也可以打字…" autocomplete="off"><button>翻譯</button></form><button class="mic zh" data-lang="zh">🎤 說國語<small>Bicara Mandarin</small></button></section>
 <form id="typed">
   <select id="typedLang"><option value="zh">中</option><option value="id">ID</option></select>
   <input id="typedText" placeholder="也可以打字 / Ketik di sini" autocomplete="off">
@@ -244,6 +247,7 @@ async function listen(lang, btn) {
 
 document.querySelectorAll('.mic').forEach(b => b.onclick = () => listen(b.dataset.lang, b));
 $('#typed').onsubmit = e => { e.preventDefault(); const t = $('#typedText'); handle(t.value, $('#typedLang').value); t.value = ''; };
+document.querySelectorAll('.pform').forEach(f => f.onsubmit = e => { e.preventDefault(); const i = f.querySelector('input'); handle(i.value, f.dataset.lang); i.value = ''; });
 $('#autoSpeak').onclick = e => { autoSpeak = !autoSpeak; e.currentTarget.setAttribute('aria-pressed', autoSpeak); };
 $('#flip').onclick = e => { const on = document.body.classList.toggle('flip'); e.currentTarget.setAttribute('aria-pressed', on); render(); };
 $('#keyBtn').onclick = setKey;
