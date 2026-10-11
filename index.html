@@ -15,7 +15,8 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Noto Sans TC",sans-serif;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
 header{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
-header h1{font-size:17px;margin:0;flex:1}
+header h1{font-size:16px;margin:0;flex:1 1 100%;white-space:nowrap}
+header{flex-wrap:wrap}
 header button{background:none;border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13px}
 header button[aria-pressed=true]{background:var(--zh);color:#fff;border-color:var(--zh)}
 #log{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
@@ -26,7 +27,7 @@ header button[aria-pressed=true]{background:var(--zh);color:#fff;border-color:va
 .msg .src{font-size:13px;color:var(--mut)}
 .msg .out{font-size:20px;font-weight:600;margin-top:2px}
 .msg button{margin-top:6px;background:none;border:0;color:var(--mut);font-size:13px;padding:2px 0}
-#status{min-height:22px;text-align:center;font-size:14px;color:var(--mut);padding:0 14px}
+#status{white-space:pre-line;min-height:22px;text-align:center;font-size:14px;color:var(--mut);padding:0 14px}
 #typed{display:flex;gap:8px;padding:6px 14px}
 #typed input{flex:1;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:12px;padding:10px;font-size:16px;min-width:0}
 #typed select{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:12px;padding:0 8px;font-size:14px}
@@ -38,14 +39,17 @@ header button[aria-pressed=true]{background:var(--zh);color:#fff;border-color:va
 @media(prefers-color-scheme:dark){.mic{color:#06201b}}
 .mic.on{outline:4px solid var(--fg);animation:pulse 1s infinite}
 @keyframes pulse{50%{transform:scale(.97)}}
-body.flip #log .msg.id{transform:rotate(180deg)}
+body.flip #log .msg.zh{transform:rotate(180deg)}
+body.flip .mic.id{transform:rotate(180deg)}
+body.flip #mics{direction:rtl}
+body.flip .mic small,body.flip .mic{direction:ltr}
 </style>
 </head>
 <body>
 <header>
   <h1>🎙 國語 ⇄ Indonesia</h1>
   <button id="autoSpeak" aria-pressed="true">🔊 自動朗讀</button>
-  <button id="flip" aria-pressed="false">↻ 對面</button>
+  <button id="flip" aria-pressed="false">↻ 對面看</button>
   <button id="clear">清除</button>
   <button id="keyBtn">🔑 金鑰</button>
 </header>
@@ -145,16 +149,32 @@ async function handle(text, from) {
   }
 }
 
-function listen(lang, btn) {
+const inApp = /Line\/|FBAN|FBAV|Instagram|MicroMessenger|; wv\)/i.test(navigator.userAgent);
+
+async function askMic() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({audio: true});
+    st.getTracks().forEach(t => t.stop());
+    return true;
+  } catch (e) {
+    setStatus('❌ 沒有麥克風權限。請點網址列左邊的 ⓘ／鎖頭 → 權限 → 麥克風 → 允許，再重新整理。\n若是從 LINE 開的，請改用 Chrome 開啟。');
+    return false;
+  }
+}
+
+async function listen(lang, btn) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { setStatus('此瀏覽器不支援語音辨識，請用 Chrome（Android）或 Safari（iPhone），或改用打字。'); return; }
+  if (inApp) { setStatus('⚠ 這是 LINE／App 內建瀏覽器，不支援麥克風。請點右上角 ⋮ →「用其他瀏覽器開啟」，選 Chrome。'); return; }
+  if (!SR) { setStatus('此瀏覽器不支援語音辨識，請改用 Chrome（Android）或 Safari（iPhone），或改用打字。'); return; }
   if (rec) { rec.stop(); return; }
+  if (!(await askMic())) return;
   speechSynthesis.cancel();
   rec = new SR();
   rec.lang = L[lang].stt;
   rec.interimResults = true;
   rec.maxAlternatives = 1;
-  let finalText = '';
+  let finalText = '', failed = false;
   btn.classList.add('on');
   setStatus('聆聽中… Mendengarkan…');
   rec.onresult = e => {
@@ -162,12 +182,21 @@ function listen(lang, btn) {
     for (const r of e.results) { if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript; }
     setStatus('🎧 ' + (finalText + interim));
   };
-  rec.onerror = e => setStatus(e.error === 'not-allowed' ? '請允許麥克風權限 / Izinkan mikrofon' : '辨識錯誤：' + e.error);
+  const errs = {
+    'not-allowed': '❌ 麥克風被拒絕。點網址列 ⓘ → 權限 → 麥克風 → 允許，再重新整理。',
+    'service-not-allowed': '❌ 此裝置的語音辨識服務被關閉。Android：設定 → 應用程式 → 預設應用程式 → 語音輸入，改成 Google。',
+    'audio-capture': '❌ 找不到麥克風。',
+    'network': '❌ 語音辨識需要網路。',
+    'language-not-supported': '❌ 此裝置不支援這個語言的辨識。',
+    'no-speech': '沒聽到聲音，再試一次 / Tidak terdengar'
+  };
+  rec.onerror = e => { failed = true; setStatus(errs[e.error] || '辨識錯誤：' + e.error); };
   rec.onend = () => {
     btn.classList.remove('on'); rec = null;
-    if (finalText) handle(finalText, lang); else if (statusEl.textContent.startsWith('聆聽') || statusEl.textContent.startsWith('🎧')) setStatus('沒聽到聲音，再試一次 / Tidak terdengar');
+    if (finalText) handle(finalText, lang);
+    else if (!failed) setStatus('沒聽到聲音，再試一次 / Tidak terdengar');
   };
-  rec.start();
+  try { rec.start(); } catch (e) { rec = null; btn.classList.remove('on'); setStatus('無法啟動麥克風：' + e.message); }
 }
 
 document.querySelectorAll('.mic').forEach(b => b.onclick = () => listen(b.dataset.lang, b));
