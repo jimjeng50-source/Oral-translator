@@ -88,29 +88,38 @@ const setStatus = t => statusEl.textContent = t || '';
 const getKey = () => { try { return localStorage.getItem('gkey') || ''; } catch (e) { return ''; } };
 
 function setKey() {
-  const k = prompt('貼上 Google Cloud Translation API 金鑰\nMasukkan Google API key（留空＝改用免費備援）', getKey());
+  const k = prompt('貼上 Gemini API 金鑰\nMasukkan Google API key（留空＝改用免費備援）', getKey());
   if (k === null) return;
   try { k.trim() ? localStorage.setItem('gkey', k.trim()) : localStorage.removeItem('gkey'); } catch (e) {}
   setStatus(k.trim() ? '✔ 已儲存金鑰（只存在這支手機）' : '已清除金鑰，使用免費備援');
 }
 
-async function googleTranslate(text, from, key) {
-  const r = await fetch('https://translation.googleapis.com/language/translate/v2?key=' + encodeURIComponent(key), {
+const GEMINI_MODEL = 'gemini-flash-lite-latest';
+const NAME = {zh: '繁體中文（台灣國語）', id: '印尼文（Bahasa Indonesia）'};
+
+async function geminiTranslate(text, from, key) {
+  const to = L[from].other;
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({q: text, source: L[from].api, target: L[L[from].other].api, format: 'text'})
+    headers: {'Content-Type': 'application/json', 'x-goog-api-key': key},
+    body: JSON.stringify({
+      systemInstruction: {parts: [{text: '你是口語即時口譯員。把使用者說的話從' + NAME[from] + '翻成' + NAME[to] +
+        '，語氣自然口語，保留原意。只輸出譯文，不要解釋、不要引號。若原文是語音辨識結果，可修正明顯的同音錯字。'}]},
+      contents: [{role: 'user', parts: [{text}]}],
+      generationConfig: {temperature: 0, thinkingConfig: {thinkingBudget: 0}}
+    })
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error((j.error && j.error.message) || 'HTTP ' + r.status);
-  const t = j.data && j.data.translations && j.data.translations[0].translatedText;
+  const t = j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts &&
+            j.candidates[0].content.parts.map(p => p.text || '').join('').trim();
   if (!t) throw new Error('no result');
-  const d = document.createElement('textarea'); d.innerHTML = t; // decode HTML entities
-  return d.value;
+  return t;
 }
 
 async function translate(text, from) {
   const key = getKey();
-  if (key) return googleTranslate(text, from, key);
+  if (key) return geminiTranslate(text, from, key);
   const to = L[from].other;
   const url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) +
               '&langpair=' + L[from].api + '|' + L[to].api;
