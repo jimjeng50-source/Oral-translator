@@ -39,22 +39,31 @@ header button[aria-pressed=true]{background:var(--zh);color:#fff;border-color:va
 @media(prefers-color-scheme:dark){.mic{color:#06201b}}
 .mic.on{outline:4px solid var(--fg);animation:pulse 1s infinite}
 @keyframes pulse{50%{transform:scale(.97)}}
-body.flip #log .msg.zh{transform:rotate(180deg)}
-body.flip .mic.id{transform:rotate(180deg)}
-body.flip #mics{direction:rtl}
-body.flip .mic small,body.flip .mic{direction:ltr}
+.pane{display:none;flex:1;min-height:0;flex-direction:column;padding:8px 14px}
+.pane .plog{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.pane .msg .out{font-size:24px}
+.pane .mic{margin-top:8px;padding:16px 8px;width:100%}
+body.flip .pane{display:flex}
+body.flip #paneId{order:1;transform:rotate(180deg);background:color-mix(in srgb,var(--id) 8%,var(--bg))}
+body.flip #paneZh{order:4;background:color-mix(in srgb,var(--zh) 8%,var(--bg))}
+body.flip header{order:2;justify-content:center;padding:6px 10px;border-top:1px solid var(--line)}
+body.flip header h1{display:none}
+body.flip #status{order:3;min-height:0;border-bottom:1px solid var(--line)}
+body.flip #log,body.flip #typed,body.flip #mics{display:none}
 </style>
 </head>
 <body>
 <header>
   <h1>🎙 國語 ⇄ Indonesia</h1>
   <button id="autoSpeak" aria-pressed="true">🔊 自動朗讀</button>
-  <button id="flip" aria-pressed="false">↻ 對面看</button>
+  <button id="flip" aria-pressed="false">↻ 對面看（分半）</button>
   <button id="clear">清除</button>
   <button id="keyBtn">🔑 金鑰</button>
 </header>
 <main id="log"><div class="empty">按下方按鈕開始說話<br>Tekan tombol di bawah lalu bicara</div></main>
 <div id="status" aria-live="polite"></div>
+<section class="pane" id="paneId"><div class="plog"></div><button class="mic id" data-lang="id">🎤 Bicara Indonesia<small>說印尼文</small></button></section>
+<section class="pane" id="paneZh"><div class="plog"></div><button class="mic zh" data-lang="zh">🎤 說國語<small>Bicara Mandarin</small></button></section>
 <form id="typed">
   <select id="typedLang"><option value="zh">中</option><option value="id">ID</option></select>
   <input id="typedText" placeholder="也可以打字 / Ketik di sini" autocomplete="off">
@@ -123,18 +132,43 @@ function speak(text, lang) {
   speechSynthesis.speak(u);
 }
 
-function addMsg(from, src, out) {
-  log.querySelector('.empty')?.remove();
-  const to = L[from].other;
+const EMPTY = '<div class="empty">按下方按鈕開始說話<br>Tekan tombol di bawah lalu bicara</div>';
+const history = [];
+
+function bubble(cls, small, big, replay) {
   const d = document.createElement('div');
-  d.className = 'msg ' + from;
-  d.innerHTML = '<div class="src"></div><div class="out"></div><button>🔊 再聽一次 / Putar ulang</button>';
-  d.querySelector('.src').textContent = src;
-  d.querySelector('.out').textContent = out;
-  d.querySelector('button').onclick = () => speak(out, to);
-  log.append(d);
+  d.className = 'msg ' + cls;
+  d.innerHTML = '<div class="src"></div><div class="out"></div>' + (replay ? '<button>🔊 再聽一次 / Putar ulang</button>' : '');
+  d.querySelector('.src').textContent = small;
+  d.querySelector('.out').textContent = big;
+  if (replay) d.querySelector('button').onclick = replay;
+  return d;
+}
+
+function render() {
+  log.replaceChildren();
+  if (!history.length) log.innerHTML = EMPTY;
+  for (const m of history) log.append(bubble(m.from, m.src, m.out, () => speak(m.out, L[m.from].other)));
+  for (const [id, P] of [['#paneId', 'id'], ['#paneZh', 'zh']]) {
+    const box = $(id + ' .plog');
+    box.replaceChildren();
+    for (const m of history) {
+      const mine = m.from === P;
+      box.append(bubble(mine ? 'id' : 'zh', mine ? m.out : m.src, mine ? m.src : m.out,
+                        mine ? null : () => speak(m.out, P)));
+      box.lastChild.classList.add(P);
+      box.lastChild.style.alignSelf = mine ? 'flex-end' : 'flex-start';
+      box.lastChild.style.borderLeftColor = 'var(--' + m.from + ')';
+    }
+    box.scrollTop = box.scrollHeight;
+  }
   log.scrollTop = log.scrollHeight;
-  if (autoSpeak) speak(out, to);
+}
+
+function addMsg(from, src, out) {
+  history.push({from, src, out});
+  render();
+  if (autoSpeak) speak(out, L[from].other);
 }
 
 async function handle(text, from) {
@@ -202,9 +236,9 @@ async function listen(lang, btn) {
 document.querySelectorAll('.mic').forEach(b => b.onclick = () => listen(b.dataset.lang, b));
 $('#typed').onsubmit = e => { e.preventDefault(); const t = $('#typedText'); handle(t.value, $('#typedLang').value); t.value = ''; };
 $('#autoSpeak').onclick = e => { autoSpeak = !autoSpeak; e.currentTarget.setAttribute('aria-pressed', autoSpeak); };
-$('#flip').onclick = e => { const on = document.body.classList.toggle('flip'); e.currentTarget.setAttribute('aria-pressed', on); };
+$('#flip').onclick = e => { const on = document.body.classList.toggle('flip'); e.currentTarget.setAttribute('aria-pressed', on); render(); };
 $('#keyBtn').onclick = setKey;
-$('#clear').onclick = () => { log.innerHTML = '<div class="empty">按下方按鈕開始說話<br>Tekan tombol di bawah lalu bicara</div>'; setStatus(''); };
+$('#clear').onclick = () => { history.length = 0; render(); setStatus(''); };
 if (!getKey()) setStatus('點右上「🔑 金鑰」設定 Google API key，翻譯品質更好');
 if ('speechSynthesis' in window) speechSynthesis.getVoices();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
