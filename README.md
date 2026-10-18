@@ -18,3 +18,10 @@
 2. 按右上「🔑 金鑰」貼上。金鑰只存在該手機的 localStorage，不進 repo。
 3. 建議到 Google Cloud Console →「API 和服務 → 憑證」編輯該金鑰：API 限制只勾 Generative Language API；應用程式限制選「HTTP 參照位址」，填 `https://jimjeng50-source.github.io/*`。
 4. 若 `AQ.` 開頭的新式金鑰回 401，請在 Cloud Console 憑證頁建立傳統 `AIza` 開頭的 API 金鑰（並啟用 Generative Language API）。
+
+## 國語 ⇄ 韓文版
+位於 `korean/`，網址：https://jimjeng50-source.github.io/Oral-translator/korean/
+- 與印尼文版同一套設計（上下分半對面看、每側各有麥克風與打字輸入）。
+- 新增「語氣」切換：韓文譯文用 존댓말（敬語）或 반말（半語）。
+- Gemini 金鑰與印尼文版共用（同一個網站來源，只需貼一次）；「對面看」「自動朗讀」「語氣」設定會記住。
+- 韓文辨識／朗讀需要手機安裝韓文語音資料（Android：設定 → 一般管理／語言 → 文字轉語音）。

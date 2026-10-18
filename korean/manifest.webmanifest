@@ -1,0 +1,11 @@
+{
+  "name": "國韓口譯 통역",
+  "short_name": "國韓口譯",
+  "description": "國語與韓文雙向語音翻譯",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f766e",
+  "theme_color": "#0f766e",
+  "icons": [{"src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+}

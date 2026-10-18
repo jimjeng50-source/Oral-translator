@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>國韓口譯 통역</title>
+<style>
+:root{--bg:#f5f7f6;--card:#fff;--fg:#14211f;--mut:#6b7b78;--zh:#0f766e;--ko:#c2410c;--line:#dfe6e4}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1514;--card:#18221f;--fg:#e8f0ee;--mut:#8aa09b;--zh:#2dd4bf;--ko:#fb923c;--line:#27332f}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,-apple-system,"Noto Sans TC","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+header h1{font-size:16px;margin:0;flex:1 1 100%;white-space:nowrap}
+header button{background:none;border:1px solid var(--line);color:var(--fg);border-radius:999px;padding:6px 12px;font-size:13px}
+header button[aria-pressed=true]{background:var(--zh);color:#fff;border-color:var(--zh)}
+#log{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.empty{margin:auto;text-align:center;color:var(--mut)}
+.msg{max-width:88%;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px}
+.msg.zh{align-self:flex-start;border-left:4px solid var(--zh)}
+.msg.ko{align-self:flex-end;border-left:4px solid var(--ko)}
+.msg .src{font-size:13px;color:var(--mut)}
+.msg .out{font-size:20px;font-weight:600;margin-top:2px}
+.msg button{margin-top:6px;background:none;border:0;color:var(--mut);font-size:13px;padding:2px 0}
+#status{white-space:pre-line;min-height:22px;text-align:center;font-size:14px;color:var(--mut);padding:0 14px}
+#typed{display:flex;gap:8px;padding:6px 14px}
+#typed input{flex:1;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:12px;padding:10px;font-size:16px;min-width:0}
+#typed select{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:12px;padding:0 8px;font-size:14px}
+#typed button{border:0;background:var(--fg);color:var(--bg);border-radius:12px;padding:0 14px;font-size:15px}
+#mics{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px 14px 14px}
+.mic{border:0;border-radius:22px;padding:22px 8px;color:#fff;font-size:18px;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:4px;touch-action:manipulation}
+.mic small{font-weight:400;font-size:13px;opacity:.9}
+.mic.zh{background:var(--zh)}.mic.ko{background:var(--ko)}
+@media(prefers-color-scheme:dark){.mic{color:#06201b}}
+.mic.on{outline:4px solid var(--fg);animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(.97)}}
+.pane{display:none;flex:1;min-height:0;flex-direction:column;padding:8px 14px}
+.pane .plog{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.pane .msg .out{font-size:24px}
+.pform{display:flex;gap:8px;margin-top:8px}
+.pform input{flex:1;min-width:0;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:12px;padding:10px;font-size:16px}
+.pform button{border:0;background:var(--fg);color:var(--bg);border-radius:12px;padding:0 14px;font-size:15px}
+.pane .mic{margin-top:8px;padding:16px 8px;width:100%}
+body.flip .pane{display:flex}
+body.flip #paneKo{order:1;transform:rotate(180deg);background:color-mix(in srgb,var(--ko) 8%,var(--bg))}
+body.flip #paneZh{order:4;background:color-mix(in srgb,var(--zh) 8%,var(--bg))}
+body.flip header{order:2;justify-content:center;padding:6px 10px;border-top:1px solid var(--line)}
+body.flip header h1{display:none}
+body.flip #status{order:3;min-height:0;border-bottom:1px solid var(--line)}
+body.flip #log,body.flip #typed,body.flip #mics{display:none}
+</style>
+</head>
+<body class="flip">
+<header>
+  <h1>🎙 國語 ⇄ 한국어</h1>
+  <button id="autoSpeak" aria-pressed="true">🔊 自動朗讀</button>
+  <button id="flip" aria-pressed="true">↻ 對面看（分半）</button>
+  <button id="tone" aria-pressed="false">語氣：존댓말</button>
+  <button id="clear">清除</button>
+  <button id="keyBtn">🔑 金鑰</button>
+</header>
+<main id="log"></main>
+<div id="status" aria-live="polite"></div>
+<section class="pane" id="paneKo"><div class="plog"></div><form class="pform" data-lang="ko"><input placeholder="여기에 입력…" autocomplete="off"><button>보내기</button></form><button class="mic ko" data-lang="ko">🎤 한국어로 말하기<small>說韓文</small></button></section>
+<section class="pane" id="paneZh"><div class="plog"></div><form class="pform" data-lang="zh"><input placeholder="也可以打字…" autocomplete="off"><button>翻譯</button></form><button class="mic zh" data-lang="zh">🎤 說國語<small>중국어(대만)로 말하기</small></button></section>
+<form id="typed">
+  <select id="typedLang"><option value="zh">中</option><option value="ko">한</option></select>
+  <input id="typedText" placeholder="也可以打字 / 여기에 입력" autocomplete="off">
+  <button>翻譯</button>
+</form>
+<div id="mics">
+  <button class="mic zh" data-lang="zh">🎤 說國語<small>중국어로 말하기</small></button>
+  <button class="mic ko" data-lang="ko">🎤 한국어로 말하기<small>說韓文</small></button>
+</div>
+
+<script>
+const L = {
+  zh: {stt: 'zh-TW', tts: 'zh-TW', api: 'zh-TW', other: 'ko'},
+  ko: {stt: 'ko-KR', tts: 'ko-KR', api: 'ko',    other: 'zh'}
+};
+const NAME = {zh: '繁體中文（台灣國語）', ko: '韓文（한국어）'};
+const GEMINI_MODEL = 'gemini-flash-lite-latest';
+const EMPTY = '<div class="empty">按下方按鈕開始說話<br>아래 버튼을 누르고 말하세요</div>';
+const $ = s => document.querySelector(s);
+const log = $('#log'), statusEl = $('#status');
+const history = [];
+let rec = null;
+
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+// 'gkey' is shared with the Indonesian tool on the same origin; the other keys are prefixed.
+let autoSpeak = store.get('ko_speak', '1') === '1';
+let honorific = store.get('ko_polite', '1') === '1';
+
+const setStatus = t => statusEl.textContent = t || '';
+const getKey = () => store.get('gkey', '');
+
+function setKey() {
+  const k = prompt('貼上 Gemini API 金鑰\nGemini API 키를 붙여넣으세요（留空＝改用免費備援）', getKey());
+  if (k === null) return;
+  k.trim() ? store.set('gkey', k.trim()) : store.del('gkey');
+  setStatus(k.trim() ? '✔ 已儲存金鑰（只存在這支手機）' : '已清除金鑰，使用免費備援');
+}
+
+async function geminiTranslate(text, from, key) {
+  const to = L[from].other;
+  let sys = '你是口語即時口譯員。把使用者說的話從' + NAME[from] + '翻成' + NAME[to] +
+    '，語氣自然口語，保留原意。只輸出譯文，不要解釋、不要引號。若原文是語音辨識結果，可修正明顯的同音錯字。';
+  if (to === 'ko') sys += honorific ? '韓文譯文使用 존댓말（敬語，해요체）。' : '韓文譯文使用 반말（半語，親近口語）。';
+  else sys += '譯成繁體中文（台灣用語），不要使用簡體字。';
+  const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + GEMINI_MODEL + ':generateContent', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'x-goog-api-key': key},
+    body: JSON.stringify({
+      systemInstruction: {parts: [{text: sys}]},
+      contents: [{role: 'user', parts: [{text}]}],
+      generationConfig: {temperature: 0}
+    })
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j.error && j.error.message) || 'HTTP ' + r.status);
+  const t = j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts &&
+            j.candidates[0].content.parts.map(p => p.text || '').join('').trim();
+  if (!t) throw new Error('no result');
+  return t;
+}
+
+async function translate(text, from) {
+  const key = getKey();
+  if (key) return geminiTranslate(text, from, key);
+  const to = L[from].other;
+  const r = await fetch('https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) +
+                        '&langpair=' + L[from].api + '|' + L[to].api);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  const out = j.responseData && j.responseData.translatedText;
+  if (!out || j.responseStatus >= 400) throw new Error(j.responseDetails || 'no result');
+  return out;
+}
+
+function speak(text, lang) {
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = L[lang].tts;
+  const v = speechSynthesis.getVoices().find(v => v.lang.replace('_', '-').startsWith(L[lang].tts.slice(0, 2)));
+  if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+
+function bubble(cls, small, big, replay) {
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.innerHTML = '<div class="src"></div><div class="out"></div>' + (replay ? '<button>🔊 再聽一次 / 다시 듣기</button>' : '');
+  d.querySelector('.src').textContent = small;
+  d.querySelector('.out').textContent = big;
+  if (replay) d.querySelector('button').onclick = replay;
+  return d;
+}
+
+function render() {
+  log.replaceChildren();
+  if (!history.length) log.innerHTML = EMPTY;
+  for (const m of history) log.append(bubble(m.from, m.src, m.out, () => speak(m.out, L[m.from].other)));
+  for (const [sel, P] of [['#paneKo', 'ko'], ['#paneZh', 'zh']]) {
+    const box = $(sel + ' .plog');
+    box.replaceChildren();
+    for (const m of history) {
+      const mine = m.from === P;
+      const b = bubble(m.from, mine ? m.out : m.src, mine ? m.src : m.out, mine ? null : () => speak(m.out, P));
+      b.style.alignSelf = mine ? 'flex-end' : 'flex-start';
+      box.append(b);
+    }
+    box.scrollTop = box.scrollHeight;
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+function addMsg(from, src, out) {
+  history.push({from, src, out});
+  render();
+  if (autoSpeak) speak(out, L[from].other);
+}
+
+async function handle(text, from) {
+  text = text.trim();
+  if (!text) return;
+  setStatus('翻譯中… 번역 중…');
+  try {
+    addMsg(from, text, await translate(text, from));
+    setStatus('');
+  } catch (e) {
+    setStatus('⚠ 翻譯失敗：' + e.message);
+  }
+}
+
+const inApp = /Line\/|FBAN|FBAV|Instagram|MicroMessenger|; wv\)/i.test(navigator.userAgent);
+
+async function askMic() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({audio: true});
+    st.getTracks().forEach(t => t.stop());
+    return true;
+  } catch (e) {
+    setStatus('❌ 沒有麥克風權限。請點網址列左邊的 ⓘ／鎖頭 → 權限 → 麥克風 → 允許，再重新整理。\n若是從 LINE 開的，請改用 Chrome 開啟。');
+    return false;
+  }
+}
+
+async function listen(lang, btn) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (inApp) { setStatus('⚠ 這是 LINE／App 內建瀏覽器，不支援麥克風。請點右上角 ⋮ →「用其他瀏覽器開啟」，選 Chrome。'); return; }
+  if (!SR) { setStatus('此瀏覽器不支援語音辨識，請改用 Chrome（Android）或 Safari（iPhone），或改用打字。'); return; }
+  if (rec) { rec.stop(); return; }
+  if (!(await askMic())) return;
+  speechSynthesis.cancel();
+  rec = new SR();
+  rec.lang = L[lang].stt;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  let finalText = '', failed = false;
+  btn.classList.add('on');
+  setStatus('聆聽中… 듣고 있어요…');
+  rec.onresult = e => {
+    let interim = '';
+    for (const r of e.results) { if (r.isFinal) finalText += r[0].transcript; else interim += r[0].transcript; }
+    setStatus('🎧 ' + (finalText + interim));
+  };
+  const errs = {
+    'not-allowed': '❌ 麥克風被拒絕。點網址列 ⓘ → 權限 → 麥克風 → 允許，再重新整理。',
+    'service-not-allowed': '❌ 此裝置的語音辨識服務被關閉。Android：設定 → 應用程式 → 預設應用程式 → 語音輸入，改成 Google。',
+    'audio-capture': '❌ 找不到麥克風。',
+    'network': '❌ 語音辨識需要網路。',
+    'language-not-supported': '❌ 此裝置不支援這個語言的辨識（請在手機語音輸入設定安裝韓文／中文語言包）。',
+    'no-speech': '沒聽到聲音，再試一次 / 소리가 들리지 않아요'
+  };
+  rec.onerror = e => { failed = true; setStatus(errs[e.error] || '辨識錯誤：' + e.error); };
+  rec.onend = () => {
+    btn.classList.remove('on'); rec = null;
+    if (finalText) handle(finalText, lang);
+    else if (!failed) setStatus('沒聽到聲音，再試一次 / 소리가 들리지 않아요');
+  };
+  try { rec.start(); } catch (e) { rec = null; btn.classList.remove('on'); setStatus('無法啟動麥克風：' + e.message); }
+}
+
+function syncButtons() {
+  $('#autoSpeak').setAttribute('aria-pressed', autoSpeak);
+  $('#tone').textContent = '語氣：' + (honorific ? '존댓말' : '반말');
+  $('#tone').setAttribute('aria-pressed', !honorific);
+  const flipOn = document.body.classList.contains('flip');
+  $('#flip').setAttribute('aria-pressed', flipOn);
+}
+
+document.querySelectorAll('.mic').forEach(b => b.onclick = () => listen(b.dataset.lang, b));
+$('#typed').onsubmit = e => { e.preventDefault(); const t = $('#typedText'); handle(t.value, $('#typedLang').value); t.value = ''; };
+document.querySelectorAll('.pform').forEach(f => f.onsubmit = e => {
+  e.preventDefault(); const i = f.querySelector('input'); handle(i.value, f.dataset.lang); i.value = '';
+});
+$('#autoSpeak').onclick = () => { autoSpeak = !autoSpeak; store.set('ko_speak', autoSpeak ? '1' : '0'); syncButtons(); };
+$('#flip').onclick = () => { const on = document.body.classList.toggle('flip'); store.set('ko_flip', on ? '1' : '0'); syncButtons(); render(); };
+$('#tone').onclick = () => { honorific = !honorific; store.set('ko_polite', honorific ? '1' : '0'); syncButtons(); };
+$('#keyBtn').onclick = setKey;
+$('#clear').onclick = () => { history.length = 0; render(); setStatus(''); };
+
+document.body.classList.toggle('flip', store.get('ko_flip', '1') === '1');
+syncButtons();
+if (!getKey()) setStatus('點右上「🔑 金鑰」設定 Gemini API 金鑰，翻譯品質更好');
+render();
+if ('speechSynthesis' in window) speechSynthesis.getVoices();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
