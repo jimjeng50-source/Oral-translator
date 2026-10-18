@@ -25,3 +25,17 @@
 - 新增「語氣」切換：韓文譯文用 존댓말（敬語）或 반말（半語）。
 - Gemini 金鑰與印尼文版共用（同一個網站來源，只需貼一次）；「對面看」「自動朗讀」「語氣」設定會記住。
 - 韓文辨識／朗讀需要手機安裝韓文語音資料（Android：設定 → 一般管理／語言 → 文字轉語音）。
+
+## 國語 ⇄ 越南文版
+位於 `vietnamese/`，網址：https://jimjeng50-source.github.io/Oral-translator/vietnamese/
+- 與韓文版同一套設計（上下分半對面看、每側各有麥克風與打字輸入），紅色系圖示。
+- 辨識／朗讀語言 `vi-VN`；越南文譯文用禮貌自然的日常口語，國語一律輸出繁體中文。
+- 不含語氣切換（越南語沒有像韓文那樣的敬語／半語層級，稱謂靠代名詞，交給 Gemini 依語境判斷）。
+- Gemini 金鑰與其他兩個版本共用。
+
+## 三個版本入口
+| 版本 | 網址 |
+|---|---|
+| 國語 ⇄ 印尼文 | https://jimjeng50-source.github.io/Oral-translator/ |
+| 國語 ⇄ 韓文 | https://jimjeng50-source.github.io/Oral-translator/korean/ |
+| 國語 ⇄ 越南文 | https://jimjeng50-source.github.io/Oral-translator/vietnamese/ |
